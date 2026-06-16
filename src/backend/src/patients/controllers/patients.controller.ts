@@ -1,4 +1,4 @@
-import { Body, Controller, Inject, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Post, Req, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -45,5 +45,13 @@ export class PatientsController {
     @Req() request: AuthenticatedRequest,
   ) {
     return await this.patientsService.create(createPatientDto, request.user);
+  }
+
+  @Get('/my-patients')
+  async findPatientsByPsychologistEmail(
+    @Req() request: AuthenticatedRequest
+  ) {
+    const psychologistEmail = request.user.email;
+    return await this.patientsService.findPatientsByPsychologistEmail(psychologistEmail);
   }
 }

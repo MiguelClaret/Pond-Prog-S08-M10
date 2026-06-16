@@ -5,6 +5,7 @@ import { CreatedPatientResponseEntity } from '../domain/entities/created-patient
 import { CreatePatientInput } from '../domain/entities/create-patient-input.entity';
 import { ExistingPatientUserRecord } from '../domain/entities/existing-patient-user-record.entity';
 import { ICreatePatientRepository } from '../domain/interfaces/create-patient.repository.interface';
+import { UserEntity } from 'src/auth/domain/entities/user.entity';
 
 type CreatedUserRecord = {
   id: string;
@@ -35,6 +36,26 @@ export class CreatePatientRepository implements ICreatePatientRepository {
     );
 
     return result.rows[0] ?? null;
+  }
+
+  async findPatientsByPsychologistEmail(psychologistEmail: string): Promise<UserEntity[]> {
+    const result = await this.databaseService.query<UserEntity>(
+      `
+        SELECT
+          u.id,
+          u.name AS "fullName",
+          u.email,
+          u.role,
+          u.created_at AS "createdAt"
+        FROM users u
+        JOIN patient_profiles pp ON pp.patient_user_id = u.id
+        JOIN users psychologist ON psychologist.id = pp.psychologist_id
+        WHERE psychologist.email = $1
+      `,
+      [psychologistEmail],
+    );
+
+    return result.rows;
   }
 
   async create(createPatientInput: CreatePatientInput): Promise<CreatedPatientResponseEntity> {

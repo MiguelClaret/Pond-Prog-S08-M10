@@ -13,6 +13,7 @@ import { CreatePatientDto } from '../domain/dto/create-patient.dto';
 import { CreatedPatientResponseEntity } from '../domain/entities/created-patient-response.entity';
 import { ICreatePatientRepository } from '../domain/interfaces/create-patient.repository.interface';
 import { IPatientsService } from '../domain/interfaces/patients.service.interface';
+import { UserEntity } from 'src/auth/domain/entities/user.entity';
 
 @Injectable()
 export class PatientsService implements IPatientsService {
@@ -53,9 +54,21 @@ export class PatientsService implements IPatientsService {
     }
   }
 
+  async findPatientsByPsychologistEmail(psychologistEmail: string): Promise<UserEntity[]> {
+    try {
+      const normalizedEmail = this.normalizeEmail(psychologistEmail);
+
+      this.ensurePsychologist({ email: normalizedEmail, role: Role.PSYCHOLOGIST, sub: '' });
+
+      return await this.createPatientRepository.findPatientsByPsychologistEmail(normalizedEmail);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
   private ensurePsychologist(authenticatedUser: AuthenticatedRequestUser): void {
     if (authenticatedUser.role !== Role.PSYCHOLOGIST) {
-      throw new ForbiddenException('Apenas psicologas podem cadastrar pacientes.');
+      throw new ForbiddenException('Apenas psicologas podem acessar esta funcionalidade.');
     }
   }
 
@@ -72,6 +85,6 @@ export class PatientsService implements IPatientsService {
       throw error;
     }
 
-    throw new InternalServerErrorException('Erro interno ao cadastrar paciente.');
+    throw new InternalServerErrorException('Erro interno ao processar pacientes.');
   }
 }
