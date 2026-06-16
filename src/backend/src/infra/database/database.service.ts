@@ -5,7 +5,7 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { loadEnvFile } from 'node:process';
-import { Pool, QueryResult, QueryResultRow } from 'pg';
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
@@ -28,6 +28,44 @@ export class DatabaseService implements OnModuleDestroy {
     }
 
     return await this.pool.query<T>(sql, params);
+  }
+
+  async transaction<T>(
+    callback: (
+      query: <R extends QueryResultRow = QueryResultRow>(
+        sql: string,
+        params?: unknown[],
+      ) => Promise<QueryResult<R>>,
+      client: PoolClient,
+    ) => Promise<T>,
+  ): Promise<T> {
+    if (!this.pool) {
+      throw new InternalServerErrorException(
+        'Banco Supabase nao configurado. Defina SUPABASE_DB_URL no ambiente.',
+      );
+    }
+
+    const client = await this.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const result = await callback(
+        async <R extends QueryResultRow = QueryResultRow>(
+          sql: string,
+          params: unknown[] = [],
+        ) => await client.query<R>(sql, params),
+        client,
+      );
+
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   isConfigured(): boolean {

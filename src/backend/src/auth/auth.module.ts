@@ -36,6 +36,6 @@ try {
       useExisting: AuthRepository,
     },
   ],
-  exports: [IAuthService, AuthGuard],
+  exports: [JwtModule, IAuthService, AuthGuard],
 })
 export class AuthModule {}
