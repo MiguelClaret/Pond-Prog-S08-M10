@@ -107,6 +107,7 @@ export class DiaryService implements IDiaryService {
   async findSharedDiaryByPatient(
     patientId: string,
     authenticatedUser: AuthenticatedRequestUser,
+    daysBack?: string,
   ): Promise<DiaryEntryEntity[]> {
     try {
       this.ensurePsychologist(
@@ -123,7 +124,9 @@ export class DiaryService implements IDiaryService {
         throw new NotFoundException('Paciente nao encontrado para esta psicologa.');
       }
 
-      return await this.diaryRepository.findSharedByPatientId(patientId);
+      const parsedDaysBack = this.parseDaysBack(daysBack);
+
+      return await this.diaryRepository.findSharedByPatientId(patientId, parsedDaysBack);
     } catch (error) {
       this.handleError(error, 'Erro interno ao buscar registros compartilhados.');
     }
@@ -168,6 +171,20 @@ export class DiaryService implements IDiaryService {
     if (intensity < 1 || intensity > 5) {
       throw new BadRequestException('A intensidade deve estar entre 1 e 5.');
     }
+  }
+
+  private parseDaysBack(daysBack?: string): number | undefined {
+    if (daysBack === undefined || daysBack.trim() === '') {
+      return undefined;
+    }
+
+    const parsed = Number(daysBack);
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new BadRequestException('daysBack deve ser um numero inteiro maior que zero.');
+    }
+
+    return parsed;
   }
 
   private normalizeNullableString(value?: string): string | null {

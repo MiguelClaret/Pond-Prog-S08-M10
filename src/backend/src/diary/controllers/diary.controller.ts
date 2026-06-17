@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -20,6 +21,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -101,6 +103,12 @@ export class DiaryController {
   @Get('shared-diary/:patientId')
   @ApiOperation({ summary: 'Lista os registros compartilhados de um paciente vinculado a psicologa autenticada' })
   @ApiParam({ name: 'patientId', example: 'cfc8053f-0b93-4e9a-b021-96c330d996c1' })
+  @ApiQuery({
+    name: 'daysBack',
+    required: false,
+    example: '7',
+    description: 'Quantidade de dias para tras a partir de hoje',
+  })
   @ApiOkResponse({
     description: 'Registros compartilhados encontrados',
     type: DiaryEntryEntity,
@@ -112,8 +120,9 @@ export class DiaryController {
   @ApiInternalServerErrorResponse({ description: 'Erro interno ao buscar registros compartilhados' })
   async findSharedDiaryByPatient(
     @Param('patientId') patientId: string,
+    @Query('daysBack') daysBack: string | undefined,
     @Req() request: AuthenticatedRequest,
   ) {
-    return await this.diaryService.findSharedDiaryByPatient(patientId, request.user);
+    return await this.diaryService.findSharedDiaryByPatient(patientId, request.user, daysBack);
   }
 }

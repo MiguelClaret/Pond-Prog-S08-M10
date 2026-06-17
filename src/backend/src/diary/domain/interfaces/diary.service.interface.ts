@@ -18,5 +18,6 @@ export abstract class IDiaryService {
   abstract findSharedDiaryByPatient(
     patientId: string,
     authenticatedUser: AuthenticatedRequestUser,
+    daysBack?: string,
   ): Promise<DiaryEntryEntity[]>;
 }

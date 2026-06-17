@@ -175,7 +175,17 @@ export class DiaryRepository implements IDiaryRepository {
     return result.rows[0]?.exists ?? false;
   }
 
-  async findSharedByPatientId(patientId: string): Promise<DiaryEntryEntity[]> {
+  async findSharedByPatientId(patientId: string, daysBack?: number): Promise<DiaryEntryEntity[]> {
+    const params: unknown[] = [patientId];
+    const dateFilter =
+      daysBack !== undefined
+        ? `AND created_at >= NOW() - ($2 * INTERVAL '1 day')`
+        : '';
+
+    if (daysBack !== undefined) {
+      params.push(daysBack);
+    }
+
     const result = await this.databaseService.query<DiaryEntryEntity>(
       `
         SELECT
@@ -196,9 +206,10 @@ export class DiaryRepository implements IDiaryRepository {
         FROM public.diary_entries
         WHERE patient_id = $1
           AND is_shared_with_psychologist = TRUE
+          ${dateFilter}
         ORDER BY created_at DESC
       `,
-      [patientId],
+      params,
     );
 
     return result.rows;

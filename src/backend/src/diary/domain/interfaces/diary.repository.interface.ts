@@ -9,5 +9,5 @@ export abstract class IDiaryRepository {
   abstract updateShare(id: string, isSharedWithPsychologist: boolean): Promise<DiaryEntryEntity>;
   abstract remove(id: string): Promise<DiaryEntryEntity>;
   abstract patientBelongsToPsychologist(patientId: string, psychologistId: string): Promise<boolean>;
-  abstract findSharedByPatientId(patientId: string): Promise<DiaryEntryEntity[]>;
+  abstract findSharedByPatientId(patientId: string, daysBack?: number): Promise<DiaryEntryEntity[]>;
 }
