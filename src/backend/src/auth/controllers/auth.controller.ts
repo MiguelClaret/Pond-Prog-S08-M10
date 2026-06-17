@@ -16,11 +16,13 @@ import {
   Get,
   HttpCode,
   Inject,
+  Patch,
   Post,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { ChangeFirstAccessPasswordDto } from '../domain/dto/change-first-access-password.dto';
 import { LoginAuthDto } from '../domain/dto/login-auth.dto';
 import { RegisterAuthDto } from '../domain/dto/register-auth.dto';
 import { AuthenticatedRequestUser } from '../domain/entities/authenticated-request-user.entity';
@@ -73,5 +75,28 @@ export class AuthController {
   @ApiInternalServerErrorResponse({ description: 'Erro interno ao buscar usuario autenticado' })
   async me(@Req() request: AuthenticatedRequest) {
     return await this.authService.me(request.user.sub);
+  }
+
+  @Patch('first-access/password')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Define a nova senha do usuario no primeiro acesso' })
+  @ApiBody({ type: ChangeFirstAccessPasswordDto })
+  @ApiOkResponse({
+    description: 'Senha de primeiro acesso atualizada com sucesso',
+    type: AuthResponseEntity,
+  })
+  @ApiBadRequestResponse({ description: 'Nova senha invalida ou usuario nao esta em primeiro acesso' })
+  @ApiUnauthorizedResponse({ description: 'Token de acesso nao informado ou invalido' })
+  @ApiNotFoundResponse({ description: 'Usuario autenticado nao encontrado' })
+  @ApiInternalServerErrorResponse({ description: 'Erro interno ao atualizar senha de primeiro acesso' })
+  async changeFirstAccessPassword(
+    @Body() changeFirstAccessPasswordDto: ChangeFirstAccessPasswordDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return await this.authService.changeFirstAccessPassword(
+      request.user.sub,
+      changeFirstAccessPasswordDto,
+    );
   }
 }

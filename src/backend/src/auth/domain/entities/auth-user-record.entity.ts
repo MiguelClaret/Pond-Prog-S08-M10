@@ -6,5 +6,6 @@ export class AuthUserRecord {
   email: string;
   passwordHash: string;
   role: Role;
+  firstAccess: boolean;
   createdAt: Date;
 }

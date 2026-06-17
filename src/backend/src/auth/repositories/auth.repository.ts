@@ -18,6 +18,7 @@ export class AuthRepository implements IAuthRepository {
           email,
           password_hash AS "passwordHash",
           role,
+          first_access AS "firstAccess",
           created_at AS "createdAt"
         FROM public.users
         WHERE email = $1
@@ -38,6 +39,7 @@ export class AuthRepository implements IAuthRepository {
           email,
           password_hash AS "passwordHash",
           role,
+          first_access AS "firstAccess",
           created_at AS "createdAt"
         FROM public.users
         WHERE id = $1
@@ -60,6 +62,7 @@ export class AuthRepository implements IAuthRepository {
           email,
           password_hash AS "passwordHash",
           role,
+          first_access AS "firstAccess",
           created_at AS "createdAt"
       `,
       [
@@ -68,6 +71,28 @@ export class AuthRepository implements IAuthRepository {
         createAuthUserInput.passwordHash,
         createAuthUserInput.role,
       ],
+    );
+
+    return result.rows[0];
+  }
+
+  async updateFirstAccessPassword(id: string, passwordHash: string): Promise<AuthUserRecord> {
+    const result = await this.databaseService.query<AuthUserRecord>(
+      `
+        UPDATE public.users
+        SET password_hash = $2,
+            first_access = FALSE
+        WHERE id = $1
+        RETURNING
+          id,
+          name AS "fullName",
+          email,
+          password_hash AS "passwordHash",
+          role,
+          first_access AS "firstAccess",
+          created_at AS "createdAt"
+      `,
+      [id, passwordHash],
     );
 
     return result.rows[0];

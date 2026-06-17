@@ -5,4 +5,5 @@ export abstract class IAuthRepository {
   abstract findByEmail(email: string): Promise<AuthUserRecord | null>;
   abstract findById(id: string): Promise<AuthUserRecord | null>;
   abstract create(createAuthUserInput: CreateAuthUserInput): Promise<AuthUserRecord>;
+  abstract updateFirstAccessPassword(id: string, passwordHash: string): Promise<AuthUserRecord>;
 }

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { ChangeFirstAccessPasswordDto } from '../domain/dto/change-first-access-password.dto';
 import { Role } from '../domain/enums/role.enum';
 import { AuthResponseEntity } from '../domain/entities/auth-response.entity';
 import { UserEntity } from '../domain/entities/user.entity';
@@ -84,6 +85,40 @@ export class AuthService implements IAuthService {
     }
   }
 
+  async changeFirstAccessPassword(
+    userId: string,
+    changeFirstAccessPasswordDto: ChangeFirstAccessPasswordDto,
+  ): Promise<AuthResponseEntity> {
+    try {
+      const newPassword = changeFirstAccessPasswordDto.newPassword?.trim();
+
+      if (!newPassword) {
+        throw new BadRequestException('A nova senha e obrigatoria.');
+      }
+
+      if (newPassword.length < 6) {
+        throw new BadRequestException('A nova senha deve ter pelo menos 6 caracteres.');
+      }
+
+      const user = await this.authRepository.findById(userId);
+
+      if (!user) {
+        throw new NotFoundException('Usuario autenticado nao encontrado.');
+      }
+
+      if (!user.firstAccess) {
+        throw new BadRequestException('Este usuario nao esta em primeiro acesso.');
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      const updatedUser = await this.authRepository.updateFirstAccessPassword(user.id, passwordHash);
+
+      return await this.buildAuthResponse(updatedUser);
+    } catch (error) {
+      this.handleError(error, 'Erro interno ao atualizar senha de primeiro acesso.');
+    }
+  }
+
   private normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
   }
@@ -94,6 +129,7 @@ export class AuthService implements IAuthService {
       fullName: user.fullName,
       email: user.email,
       role: user.role,
+      firstAccess: user.firstAccess,
       createdAt: user.createdAt,
     };
   }

@@ -19,6 +19,7 @@ describe('AuthService', () => {
     findById: jest.fn(),
     findPatientProfileByEmail: jest.fn(),
     create: jest.fn(),
+    updateFirstAccessPassword: jest.fn(),
   };
 
   const jwtServiceMock = {
@@ -54,6 +55,7 @@ describe('AuthService', () => {
       email: 'maria@example.com',
       passwordHash: 'hashed-password',
       role: Role.PSYCHOLOGIST,
+      firstAccess: false,
       createdAt: new Date('2026-06-16T10:00:00.000Z'),
     });
     jwtServiceMock.signAsync.mockResolvedValue('jwt-token');
@@ -100,6 +102,7 @@ describe('AuthService', () => {
       email: 'maria@example.com',
       passwordHash: 'hashed-password',
       role: Role.PSYCHOLOGIST,
+      firstAccess: false,
       createdAt: new Date('2026-06-16T10:00:00.000Z'),
     });
 
@@ -123,6 +126,7 @@ describe('AuthService', () => {
       email: 'maria@example.com',
       passwordHash: 'hashed-password',
       role: Role.PSYCHOLOGIST,
+      firstAccess: false,
       createdAt: new Date('2026-06-16T10:00:00.000Z'),
     });
 
@@ -135,5 +139,37 @@ describe('AuthService', () => {
     authRepositoryMock.findById.mockResolvedValue(null);
 
     await expect(authService.me('missing-user')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('should change password on first access', async () => {
+    authRepositoryMock.findById.mockResolvedValue({
+      id: 'user-1',
+      fullName: 'Joao Silva',
+      email: 'joao@example.com',
+      passwordHash: 'old-hash',
+      role: Role.PATIENT,
+      firstAccess: true,
+      createdAt: new Date('2026-06-16T10:00:00.000Z'),
+    });
+    authRepositoryMock.updateFirstAccessPassword.mockResolvedValue({
+      id: 'user-1',
+      fullName: 'Joao Silva',
+      email: 'joao@example.com',
+      passwordHash: 'new-hash',
+      role: Role.PATIENT,
+      firstAccess: false,
+      createdAt: new Date('2026-06-16T10:00:00.000Z'),
+    });
+    jwtServiceMock.signAsync.mockResolvedValue('jwt-token');
+
+    const hashMock = bcrypt.hash as jest.Mock;
+    hashMock.mockResolvedValue('new-hash');
+
+    const result = await authService.changeFirstAccessPassword('user-1', {
+      newPassword: 'novaSenha123',
+    });
+
+    expect(authRepositoryMock.updateFirstAccessPassword).toHaveBeenCalledWith('user-1', 'new-hash');
+    expect(result.user.firstAccess).toBe(false);
   });
 });

@@ -14,6 +14,9 @@ export class UserEntity {
   @ApiProperty({ enum: Role, example: Role.PSYCHOLOGIST })
   role: Role;
 
+  @ApiProperty({ example: false })
+  firstAccess: boolean;
+
   @ApiProperty({ example: '2026-06-16T12:00:00.000Z' })
   createdAt: Date;
 }
