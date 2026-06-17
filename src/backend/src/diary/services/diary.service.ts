@@ -9,12 +9,14 @@ import {
 } from '@nestjs/common';
 import { AuthenticatedRequestUser } from '../../auth/domain/entities/authenticated-request-user.entity';
 import { Role } from '../../auth/domain/enums/role.enum';
+import { IStorageService } from '../../storage/domain/interfaces/storage.service.interface';
 import { IWeatherService } from '../../weather/domain/interfaces/weather.service.interface';
-import { CreateDiaryEntryDto } from '../domain/dto/create-diary-entry.dto';
+import { CreateDiaryEntryFormDataDto } from '../domain/dto/create-diary-entry-form-data.dto';
 import { ShareDiaryEntryDto } from '../domain/dto/share-diary-entry.dto';
 import { CreateDiaryEntryInput } from '../domain/entities/create-diary-entry-input.entity';
 import { DiaryEntryEntity } from '../domain/entities/diary-entry.entity';
 import { DiaryEntryOwnerRecord } from '../domain/entities/diary-entry-owner-record.entity';
+import { UploadedAudioFileEntity } from '../domain/entities/uploaded-audio-file.entity';
 import { IDiaryRepository } from '../domain/interfaces/diary.repository.interface';
 import { IDiaryService } from '../domain/interfaces/diary.service.interface';
 
@@ -27,19 +29,39 @@ export class DiaryService implements IDiaryService {
     private readonly diaryRepository: IDiaryRepository,
     @Inject(IWeatherService)
     private readonly weatherService: IWeatherService,
+    @Inject(IStorageService)
+    private readonly storageService: IStorageService,
   ) {}
 
   async create(
-    createDiaryEntryDto: CreateDiaryEntryDto,
+    createDiaryEntryDto: CreateDiaryEntryFormDataDto,
     authenticatedUser: AuthenticatedRequestUser,
+    uploadedAudioFile?: UploadedAudioFileEntity,
   ): Promise<DiaryEntryEntity> {
     try {
       this.ensurePatient(authenticatedUser, 'Apenas pacientes podem criar registros no diario.');
-      this.validateDiaryEntryContent(createDiaryEntryDto.text, createDiaryEntryDto.audioUrl);
-      this.validateIntensity(createDiaryEntryDto.intensity);
+      this.validateDiaryEntryContent(
+        createDiaryEntryDto.text,
+        undefined,
+        uploadedAudioFile,
+      );
+      const intensity = this.parseRequiredNumber(createDiaryEntryDto.intensity, 'intensity');
+      this.validateIntensity(intensity);
 
-      const latitude = createDiaryEntryDto.latitude ?? null;
-      const longitude = createDiaryEntryDto.longitude ?? null;
+      const normalizedText = this.normalizeNullableString(createDiaryEntryDto.text);
+      let resolvedAudioUrl: string | null = null;
+
+      if (uploadedAudioFile) {
+        resolvedAudioUrl = await this.tryUploadDiaryAudio(
+          authenticatedUser.sub,
+          uploadedAudioFile,
+          normalizedText,
+          resolvedAudioUrl,
+        );
+      }
+
+      const latitude = this.parseOptionalNumber(createDiaryEntryDto.latitude);
+      const longitude = this.parseOptionalNumber(createDiaryEntryDto.longitude);
       const weatherData =
         latitude !== null && longitude !== null
           ? await this.tryGetCurrentWeather(latitude, longitude)
@@ -48,11 +70,13 @@ export class DiaryService implements IDiaryService {
       const input: CreateDiaryEntryInput = {
         patientId: authenticatedUser.sub,
         title: this.normalizeNullableString(createDiaryEntryDto.title),
-        text: this.normalizeNullableString(createDiaryEntryDto.text),
+        text: normalizedText,
         mood: createDiaryEntryDto.mood.trim(),
-        intensity: createDiaryEntryDto.intensity,
-        audioUrl: this.normalizeNullableString(createDiaryEntryDto.audioUrl),
-        isSharedWithPsychologist: createDiaryEntryDto.isSharedWithPsychologist ?? false,
+        intensity,
+        audioUrl: resolvedAudioUrl,
+        isSharedWithPsychologist: this.parseOptionalBoolean(
+          createDiaryEntryDto.isSharedWithPsychologist,
+        ),
         weatherTemperature: weatherData?.temperature ?? null,
         weatherDescription: weatherData?.description ?? null,
         latitude,
@@ -158,11 +182,15 @@ export class DiaryService implements IDiaryService {
     }
   }
 
-  private validateDiaryEntryContent(text?: string, audioUrl?: string): void {
+  private validateDiaryEntryContent(
+    text?: string,
+    audioUrl?: string,
+    uploadedAudioFile?: UploadedAudioFileEntity,
+  ): void {
     const normalizedText = this.normalizeNullableString(text);
     const normalizedAudioUrl = this.normalizeNullableString(audioUrl);
 
-    if (!normalizedText && !normalizedAudioUrl) {
+    if (!normalizedText && !normalizedAudioUrl && !uploadedAudioFile) {
       throw new BadRequestException('O registro deve ter texto ou audio.');
     }
   }
@@ -192,6 +220,41 @@ export class DiaryService implements IDiaryService {
     return normalized ? normalized : null;
   }
 
+  private parseRequiredNumber(value: number | string, fieldName: string): number {
+    const parsed = Number(value);
+
+    if (Number.isNaN(parsed)) {
+      throw new BadRequestException(`${fieldName} deve ser um numero valido.`);
+    }
+
+    return parsed;
+  }
+
+  private parseOptionalNumber(value?: number | string | null): number | null {
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
+
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) {
+      throw new BadRequestException('Latitude e longitude devem ser numeros validos.');
+    }
+
+    return parsed;
+  }
+
+  private parseOptionalBoolean(value?: boolean | string | null): boolean {
+    if (value === undefined || value === null || value === '') {
+      return false;
+    }
+
+    if (typeof value === 'boolean') {
+      return value;
+    }
+
+    return String(value).toLowerCase() === 'true';
+  }
+
   private async tryGetCurrentWeather(latitude: number, longitude: number) {
     try {
       return await this.weatherService.getCurrentWeather(latitude, longitude);
@@ -200,6 +263,25 @@ export class DiaryService implements IDiaryService {
         `Nao foi possivel buscar clima para o diario do paciente na latitude=${latitude} longitude=${longitude}.`,
       );
       return null;
+    }
+  }
+
+  private async tryUploadDiaryAudio(
+    patientId: string,
+    uploadedAudioFile: UploadedAudioFileEntity,
+    text: string | null,
+    fallbackAudioUrl: string | null,
+  ): Promise<string | null> {
+    try {
+      return await this.storageService.uploadDiaryAudio(patientId, uploadedAudioFile);
+    } catch (error) {
+      this.logger.warn(`Nao foi possivel enviar o audio do diario do paciente ${patientId}.`);
+
+      if (!text && !fallbackAudioUrl) {
+        throw error;
+      }
+
+      return fallbackAudioUrl;
     }
   }
 

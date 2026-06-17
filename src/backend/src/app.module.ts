@@ -4,9 +4,10 @@ import { DiaryModule } from './diary/diary.module';
 import { DatabaseModule } from './infra/database/database.module';
 import { PatientsModule } from './patients/patients.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { StorageModule } from './storage/storage.module';
 import { WeatherModule } from './weather/weather.module';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, PatientsModule, DiaryModule, WeatherModule, SessionsModule]
+  imports: [DatabaseModule, AuthModule, PatientsModule, DiaryModule, WeatherModule, SessionsModule, StorageModule]
 })
 export class AppModule {}

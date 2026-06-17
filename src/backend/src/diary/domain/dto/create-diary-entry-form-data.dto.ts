@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class CreateDiaryEntryDto {
+export class CreateDiaryEntryFormDataDto {
   @ApiPropertyOptional({ example: 'Discussao no trabalho' })
   title?: string;
 
@@ -13,9 +13,6 @@ export class CreateDiaryEntryDto {
   @ApiProperty({ example: 4, description: 'Valor de 1 a 5' })
   intensity: number;
 
-  @ApiPropertyOptional({ example: 'https://storage.example.com/audio/registro-1.m4a' })
-  audioUrl?: string;
-
   @ApiPropertyOptional({ example: false })
   isSharedWithPsychologist?: boolean;
 
@@ -24,4 +21,11 @@ export class CreateDiaryEntryDto {
 
   @ApiPropertyOptional({ example: -46.633308 })
   longitude?: number;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Arquivo de audio opcional do diario',
+  })
+  audio?: unknown;
 }

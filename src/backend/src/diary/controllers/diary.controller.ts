@@ -9,11 +9,15 @@ import {
   Post,
   Query,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiInternalServerErrorResponse,
@@ -26,11 +30,13 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthenticatedRequestUser } from '../../auth/domain/entities/authenticated-request-user.entity';
 import { AuthGuard } from '../../auth/guards/auth.guard';
-import { CreateDiaryEntryDto } from '../domain/dto/create-diary-entry.dto';
+import { CreateDiaryEntryFormDataDto } from '../domain/dto/create-diary-entry-form-data.dto';
 import { ShareDiaryEntryDto } from '../domain/dto/share-diary-entry.dto';
 import { DiaryEntryEntity } from '../domain/entities/diary-entry.entity';
+import { UploadedAudioFileEntity } from '../domain/entities/uploaded-audio-file.entity';
 import { IDiaryService } from '../domain/interfaces/diary.service.interface';
 
 type AuthenticatedRequest = Request & {
@@ -48,17 +54,30 @@ export class DiaryController {
   ) {}
 
   @Post()
+  @UseInterceptors(FileInterceptor('audio'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Cria um registro no diario do paciente autenticado' })
+  @ApiBody({ type: CreateDiaryEntryFormDataDto })
   @ApiCreatedResponse({ description: 'Registro criado com sucesso', type: DiaryEntryEntity })
   @ApiBadRequestResponse({ description: 'Dados invalidos para criar registro' })
   @ApiForbiddenResponse({ description: 'Apenas pacientes podem criar registros no diario' })
   @ApiUnauthorizedResponse({ description: 'Token de acesso nao informado ou invalido' })
   @ApiInternalServerErrorResponse({ description: 'Erro interno ao criar registro no diario' })
   async create(
-    @Body() createDiaryEntryDto: CreateDiaryEntryDto,
+    @Body() createDiaryEntryDto: CreateDiaryEntryFormDataDto,
+    @UploadedFile() uploadedAudioFile: Express.Multer.File | undefined,
     @Req() request: AuthenticatedRequest,
   ) {
-    return await this.diaryService.create(createDiaryEntryDto, request.user);
+    const mappedAudioFile: UploadedAudioFileEntity | undefined = uploadedAudioFile
+      ? {
+          buffer: uploadedAudioFile.buffer,
+          mimetype: uploadedAudioFile.mimetype,
+          originalname: uploadedAudioFile.originalname,
+          size: uploadedAudioFile.size,
+        }
+      : undefined;
+
+    return await this.diaryService.create(createDiaryEntryDto, request.user, mappedAudioFile);
   }
 
   @Get('me')

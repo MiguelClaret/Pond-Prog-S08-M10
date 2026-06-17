@@ -1,12 +1,14 @@
 import { AuthenticatedRequestUser } from '../../../auth/domain/entities/authenticated-request-user.entity';
-import { CreateDiaryEntryDto } from '../dto/create-diary-entry.dto';
+import { CreateDiaryEntryFormDataDto } from '../dto/create-diary-entry-form-data.dto';
 import { ShareDiaryEntryDto } from '../dto/share-diary-entry.dto';
 import { DiaryEntryEntity } from '../entities/diary-entry.entity';
+import { UploadedAudioFileEntity } from '../entities/uploaded-audio-file.entity';
 
 export abstract class IDiaryService {
   abstract create(
-    createDiaryEntryDto: CreateDiaryEntryDto,
+    createDiaryEntryDto: CreateDiaryEntryFormDataDto,
     authenticatedUser: AuthenticatedRequestUser,
+    uploadedAudioFile?: UploadedAudioFileEntity,
   ): Promise<DiaryEntryEntity>;
   abstract findMine(authenticatedUser: AuthenticatedRequestUser): Promise<DiaryEntryEntity[]>;
   abstract updateShare(
