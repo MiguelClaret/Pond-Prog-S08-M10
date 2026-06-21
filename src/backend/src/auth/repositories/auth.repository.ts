@@ -9,19 +9,28 @@ import { IAuthRepository } from '../domain/interfaces/auth.repository.interface'
 export class AuthRepository implements IAuthRepository {
   constructor(private readonly databaseService: DatabaseService) {}
 
+  private readonly baseSelect = `
+    SELECT
+      u.id,
+      u.name AS "fullName",
+      u.email,
+      u.password_hash AS "passwordHash",
+      u.role,
+      u.first_access AS "firstAccess",
+      u.created_at AS "createdAt",
+      psychologist.id AS "psychologistId",
+      psychologist.name AS "psychologistFullName",
+      psychologist.email AS "psychologistEmail"
+    FROM public.users u
+    LEFT JOIN public.patient_profiles pp ON pp.patient_user_id = u.id
+    LEFT JOIN public.users psychologist ON psychologist.id = pp.psychologist_id
+  `;
+
   async findByEmail(email: string): Promise<AuthUserRecord | null> {
     const result = await this.databaseService.query<AuthUserRecord>(
       `
-        SELECT
-          id,
-          name AS "fullName",
-          email,
-          password_hash AS "passwordHash",
-          role,
-          first_access AS "firstAccess",
-          created_at AS "createdAt"
-        FROM public.users
-        WHERE email = $1
+        ${this.baseSelect}
+        WHERE u.email = $1
         LIMIT 1
       `,
       [email],
@@ -33,22 +42,18 @@ export class AuthRepository implements IAuthRepository {
   async findById(id: string): Promise<AuthUserRecord | null> {
     const result = await this.databaseService.query<AuthUserRecord>(
       `
-        SELECT
-          id,
-          name AS "fullName",
-          email,
-          password_hash AS "passwordHash",
-          role,
-          first_access AS "firstAccess",
-          created_at AS "createdAt"
-        FROM public.users
-        WHERE id = $1
+        ${this.baseSelect}
+        WHERE u.id = $1
         LIMIT 1
       `,
       [id],
     );
 
     return result.rows[0] ?? null;
+  }
+
+  async findDetailedById(id: string): Promise<AuthUserRecord | null> {
+    return await this.findById(id);
   }
 
   async create(createAuthUserInput: CreateAuthUserInput): Promise<AuthUserRecord> {
@@ -77,24 +82,22 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async updateFirstAccessPassword(id: string, passwordHash: string): Promise<AuthUserRecord> {
-    const result = await this.databaseService.query<AuthUserRecord>(
+    await this.databaseService.query<AuthUserRecord>(
       `
         UPDATE public.users
         SET password_hash = $2,
             first_access = FALSE
         WHERE id = $1
-        RETURNING
-          id,
-          name AS "fullName",
-          email,
-          password_hash AS "passwordHash",
-          role,
-          first_access AS "firstAccess",
-          created_at AS "createdAt"
       `,
       [id, passwordHash],
     );
 
-    return result.rows[0];
+    const updatedUser = await this.findById(id);
+
+    if (!updatedUser) {
+      throw new Error('Updated auth user not found.');
+    }
+
+    return updatedUser;
   }
 }

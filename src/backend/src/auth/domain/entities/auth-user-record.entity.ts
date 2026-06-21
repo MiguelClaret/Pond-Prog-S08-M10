@@ -8,4 +8,7 @@ export class AuthUserRecord {
   role: Role;
   firstAccess: boolean;
   createdAt: Date;
+  psychologistId?: string | null;
+  psychologistFullName?: string | null;
+  psychologistEmail?: string | null;
 }

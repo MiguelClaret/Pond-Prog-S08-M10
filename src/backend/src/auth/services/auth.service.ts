@@ -73,7 +73,7 @@ export class AuthService implements IAuthService {
 
   async me(userId: string): Promise<UserEntity> {
     try {
-      const user = await this.authRepository.findById(userId);
+      const user = await this.authRepository.findDetailedById(userId);
 
       if (!user) {
         throw new NotFoundException('Usuario autenticado nao encontrado.');
@@ -131,10 +131,24 @@ export class AuthService implements IAuthService {
       role: user.role,
       firstAccess: user.firstAccess,
       createdAt: user.createdAt,
+      psychologist:
+        user.psychologistId && user.psychologistFullName && user.psychologistEmail
+          ? {
+              id: user.psychologistId,
+              fullName: user.psychologistFullName,
+              email: user.psychologistEmail,
+            }
+          : null,
     };
   }
 
   private async buildAuthResponse(user: AuthUserRecord): Promise<AuthResponseEntity> {
+    const detailedUser = await this.authRepository.findDetailedById(user.id);
+
+    if (!detailedUser) {
+      throw new NotFoundException('Usuario autenticado nao encontrado.');
+    }
+
     const accessToken = await this.jwtService.signAsync({
       sub: user.id,
       email: user.email,
@@ -143,7 +157,7 @@ export class AuthService implements IAuthService {
 
     return {
       accessToken,
-      user: this.toUserEntity(user),
+      user: this.toUserEntity(detailedUser),
     };
   }
 

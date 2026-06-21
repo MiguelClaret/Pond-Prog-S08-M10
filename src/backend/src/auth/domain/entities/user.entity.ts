@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '../enums/role.enum';
+import { UserPsychologistEntity } from './user-psychologist.entity';
 
 export class UserEntity {
   @ApiProperty({ example: 'b2cc4650-4dc4-4b8c-a7b9-d17d7dbf31ba' })
@@ -19,4 +20,11 @@ export class UserEntity {
 
   @ApiProperty({ example: '2026-06-16T12:00:00.000Z' })
   createdAt: Date;
+
+  @ApiProperty({
+    type: UserPsychologistEntity,
+    required: false,
+    nullable: true,
+  })
+  psychologist?: UserPsychologistEntity | null;
 }
